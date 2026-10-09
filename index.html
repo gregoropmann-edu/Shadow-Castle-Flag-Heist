@@ -772,6 +772,7 @@
                 this.patrolTimer = 0;
                 this.patrolState = 'WALK';
                 this.waitTime = 0;
+                this.avoiding = false;   // true while committed to a wall-avoid turn
             }
 
             update(dt) {
@@ -823,7 +824,8 @@
 
                     case 'CHASE':
                         this.targetLastKnown = { x: player.x, y: player.y };
-                        this.moveTowards(player.x, player.y, this.chaseSpeed, this.chaseTurnSpeed, dt);
+                        // stop at melee range instead of walking onto the player's centre
+                        this.moveTowards(player.x, player.y, this.chaseSpeed, this.chaseTurnSpeed, dt, this.radius + player.radius + 4);
 
                         if (distToPlayer < this.radius + player.radius + 8 && this.attackCooldown <= 0) {
                             player.hp -= 16;
@@ -867,6 +869,15 @@
 
                 this.angle = lerpAngle(this.angle, this.targetAngle, this.turnSpeed, dt);
 
+                // Committed wall-avoid turn: finish rotating before walking or re-deciding.
+                // (Re-picking the target from the half-turned angle every frame made the cone vibrate.)
+                if (this.avoiding) {
+                    let d = Math.abs(this.targetAngle - this.angle) % TWO_PI;
+                    if (d > Math.PI) d = TWO_PI - d;
+                    if (d > 0.05) return;
+                    this.avoiding = false;
+                }
+
                 this.patrolTimer += dt;
                 if (this.patrolTimer > 3.5) {
                     if (Math.random() < 0.35) {
@@ -884,12 +895,15 @@
                 const probeY = this.y + Math.sin(this.angle) * probeDist;
 
                 if (checkTileCollision(probeX, probeY, this.radius)) {
-                    const anglesToTry = [Math.PI / 2, -Math.PI / 2, Math.PI * 0.75, -Math.PI * 0.75, Math.PI];
+                    // Small corrections first (a guard drifting toward a corridor wall just needs a nudge,
+                    // not a 90°/180° turn), then the original wider options.
+                    const anglesToTry = [0.5, -0.5, Math.PI / 2, -Math.PI / 2, Math.PI * 0.75, -Math.PI * 0.75, Math.PI];
                     let foundNewDir = false;
                     for (const da of anglesToTry) {
                         const testAngle = this.angle + da;
-                        const testX = this.x + Math.cos(testAngle) * (probeDist + 8);
-                        const testY = this.y + Math.sin(testAngle) * (probeDist + 8);
+                        const testDist = Math.abs(da) < 1 ? probeDist : probeDist + 8;
+                        const testX = this.x + Math.cos(testAngle) * testDist;
+                        const testY = this.y + Math.sin(testAngle) * testDist;
                         if (!checkTileCollision(testX, testY, this.radius)) {
                             this.targetAngle = testAngle;
                             foundNewDir = true;
@@ -897,6 +911,7 @@
                         }
                     }
                     if (!foundNewDir) this.targetAngle = this.angle + Math.PI;
+                    this.avoiding = true;
                 } else {
                     const nextX = this.x + Math.cos(this.angle) * this.speed * f;
                     const nextY = this.y + Math.sin(this.angle) * this.speed * f;
@@ -905,10 +920,17 @@
                 }
             }
 
-            moveTowards(tx, ty, speed, turnSpeed, dt) {
+            // stopDist: arrival radius. Without it guards overshoot their target, the bearing flips ~180
+            // every frame and the vision cone shakes. Inside ~3px the bearing is meaningless, so keep the heading.
+            moveTowards(tx, ty, speed, turnSpeed, dt, stopDist = 8) {
                 const f = dt * 60;
+                const dist = Math.hypot(tx - this.x, ty - this.y);
+                if (dist < 3) return;
+
                 const targetAngle = Math.atan2(ty - this.y, tx - this.x);
                 this.angle = lerpAngle(this.angle, targetAngle, turnSpeed, dt);
+
+                if (dist <= stopDist) return;   // arrived: keep facing the target, don't dither around it
 
                 const nextX = this.x + Math.cos(this.angle) * speed * f;
                 const nextY = this.y + Math.sin(this.angle) * speed * f;
@@ -1222,7 +1244,7 @@
             y > cameraY - margin && y < cameraY + canvas.height + margin;
 
         function render() {
-            if (!player) return;
+            if (!player || canvas.width === 0 || canvas.height === 0) return;
             if (mapDirty) rebuildStaticLayers();
 
             const w = canvas.width, h = canvas.height;
@@ -1464,8 +1486,8 @@
 
         // Fog rendered at half resolution into a reused offscreen canvas, then scaled up.
         function drawDarknessFog() {
-            const fw = Math.ceil(canvas.width * FOG_SCALE);
-            const fh = Math.ceil(canvas.height * FOG_SCALE);
+            const fw = Math.max(1, Math.ceil(canvas.width * FOG_SCALE));
+            const fh = Math.max(1, Math.ceil(canvas.height * FOG_SCALE));
             if (fogCanvas.width !== fw || fogCanvas.height !== fh) {
                 fogCanvas.width = fw;
                 fogCanvas.height = fh;
@@ -1868,14 +1890,16 @@
             const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
             lastTime = timestamp;
 
+            // Schedule the next frame first so one failed frame can never stop the loop for good
+            requestAnimationFrame(gameLoop);
+
             update(dt);
 
-            if (gameState === 'PLAYING' || renderOnce) {
+            // A 0x0 canvas (hidden/minimized window, collapsed iframe) can't be drawn from; wait for a real size
+            if ((gameState === 'PLAYING' || renderOnce) && canvas.width > 0 && canvas.height > 0) {
                 render();
                 renderOnce = false;
             }
-
-            requestAnimationFrame(gameLoop);
         }
 
         /* =====================================================================
