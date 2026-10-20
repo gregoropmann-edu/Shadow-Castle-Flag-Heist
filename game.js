@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -14,14 +14,14 @@ const firebaseConfig = {
     measurementId: "G-2KNME0CSZZ"
 };
 
-// Initialize Firebase & Services
+// Initialize Firebase Services
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// Restrict Google Sign-In prompt to voco.ee accounts
+// Restrict Google Sign-In prompt to voco.ee domain
 googleProvider.setCustomParameters({
     'hd': 'voco.ee'
 });
@@ -68,37 +68,46 @@ function requestFullscreenMode() {
 
 document.getElementById('btn-fullscreen')?.addEventListener('click', requestFullscreenMode);
 
-// Track Google Auth State Changes
-onAuthStateChanged(auth, async (user) => {
+// Sync UI components based on user login status
+function updateAuthUI(user) {
     const displayNameElem = document.getElementById('user-display-name');
     const loginBtn = document.getElementById('btn-google-login');
     const submitBtn = document.getElementById('btn-submit-score');
 
     if (user) {
-        if (!user.email || !user.email.endsWith('@voco.ee')) {
-            alert('Access restricted! Please sign in with your official @voco.ee account.');
-            await signOut(auth);
-            currentUser = null;
-            return;
-        }
-
-        currentUser = user;
         if (displayNameElem) displayNameElem.innerText = `👤 ${user.displayName || 'Player'}`;
         if (loginBtn) loginBtn.classList.add('hidden');
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerText = 'Submit Score to Global Leaderboard';
-            submitBtn.className = 'bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer';
+            submitBtn.className = 'w-full bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer';
         }
     } else {
-        currentUser = null;
         if (displayNameElem) displayNameElem.innerText = 'Not signed in';
         if (loginBtn) loginBtn.classList.remove('hidden');
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerText = 'Sign in to Submit Score';
-            submitBtn.className = 'bg-slate-700 text-slate-500 text-xs font-bold px-4 py-2.5 rounded-xl cursor-not-allowed transition';
+            submitBtn.className = 'w-full bg-slate-700 text-slate-500 text-xs font-bold px-4 py-2.5 rounded-xl cursor-not-allowed transition';
         }
+    }
+}
+
+// Track Google Auth State Changes
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        if (!user.email || !user.email.endsWith('@voco.ee')) {
+            alert('Access restricted! Please sign in with your official @voco.ee account.');
+            await signOut(auth);
+            currentUser = null;
+            updateAuthUI(null);
+            return;
+        }
+        currentUser = user;
+        updateAuthUI(user);
+    } else {
+        currentUser = null;
+        updateAuthUI(null);
     }
 });
 
@@ -106,11 +115,16 @@ async function handleGoogleLogin() {
     try {
         await signInWithPopup(auth, googleProvider);
     } catch (error) {
-        console.error("Google auth failed:", error);
+        console.warn("Popup blocked or failed, attempting redirect login:", error);
+        try {
+            await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError) {
+            console.error("Google login failed:", redirectError);
+        }
     }
 }
 
-// --- Game Logic ---
+// --- Game Engine Logic ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -438,7 +452,7 @@ class Player {
         // Auto Look-At Nearest Guard on Mobile
         if (isMobileDevice) {
             let closestGuard = null;
-            let minDistance = 280; // Max auto-lock detection distance
+            let minDistance = 280;
 
             for (let g of guards) {
                 if (g.hp > 0) {
@@ -460,7 +474,6 @@ class Player {
                 worldMouseY = this.y + dy * 150;
             }
         } else {
-            // Standard Mouse Aim on Desktop
             this.angle = Math.atan2(worldMouseY - this.y, worldMouseX - this.x);
         }
 
@@ -1671,7 +1684,7 @@ async function submitScore() {
 
         if (btn) {
             btn.innerText = 'Score Posted! 🎉';
-            btn.className = 'bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl';
+            btn.className = 'w-full bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl';
         }
         fetchLeaderboard();
     } catch (e) {
@@ -1743,6 +1756,9 @@ function triggerVictory() {
     if (guardKills > currentKills) {
         localStorage.setItem('shadow_castle_v3_kills', guardKills.toString());
     }
+
+    // Refresh user state UI directly on trigger
+    updateAuthUI(currentUser);
 
     document.getElementById('modal-victory').classList.remove('hidden');
 }
