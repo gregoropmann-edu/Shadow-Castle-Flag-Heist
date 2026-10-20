@@ -91,46 +91,37 @@
 
     <!-- Mobile Touch Controls Overlay -->
     <div id="mobile-controls" class="absolute inset-0 pointer-events-none z-20 flex justify-between items-end p-4 hidden">
-        <!-- Enlarged & Translucent Left D-Pad -->
+        <!-- Large Translucent Left D-Pad -->
         <div id="touch-dpad" class="grid grid-cols-3 gap-1.5 w-48 h-48 sm:w-56 sm:h-56 pointer-events-auto opacity-55 hover:opacity-90 transition-opacity">
             <div></div>
-            <button id="btn-touch-up" class="touch-btn rounded-t-2xl flex items-center justify-center text-2xl font-bold">⬆️</button>
+            <button id="btn-touch-up" class="touch-btn rounded-t-2xl flex items-center justify-center text-3xl font-bold">⬆️</button>
             <div></div>
-            <button id="btn-touch-left" class="touch-btn rounded-l-2xl flex items-center justify-center text-2xl font-bold">⬅️</button>
+            <button id="btn-touch-left" class="touch-btn rounded-l-2xl flex items-center justify-center text-3xl font-bold">⬅️</button>
             <div class="touch-btn rounded-none flex items-center justify-center text-[10px] text-slate-400 font-extrabold tracking-widest">MOVE</div>
-            <button id="btn-touch-right" class="touch-btn rounded-r-2xl flex items-center justify-center text-2xl font-bold">➡️</button>
+            <button id="btn-touch-right" class="touch-btn rounded-r-2xl flex items-center justify-center text-3xl font-bold">➡️</button>
             <div></div>
-            <button id="btn-touch-down" class="touch-btn rounded-b-2xl flex items-center justify-center text-2xl font-bold">⬇️</button>
+            <button id="btn-touch-down" class="touch-btn rounded-b-2xl flex items-center justify-center text-3xl font-bold">⬇️</button>
             <div></div>
         </div>
 
-        <!-- Right Side: Camera Aim Joystick & Action Buttons -->
-        <div class="flex flex-col items-end gap-3 pointer-events-auto">
-            <!-- Action Buttons Bar -->
-            <div class="flex gap-2.5">
-                <button id="btn-touch-rock" class="touch-btn w-12 h-12 rounded-full flex flex-col items-center justify-center text-xs font-bold text-amber-300 active:scale-90 opacity-70">
-                    <span>🪨</span>
-                    <span class="text-[8px]">LURE</span>
-                </button>
-                <button id="btn-touch-crouch" class="touch-btn w-12 h-12 rounded-full flex flex-col items-center justify-center text-xs font-bold text-emerald-300 active:scale-90 opacity-70">
-                    <span>🥷</span>
-                    <span class="text-[8px]">SNEAK</span>
-                </button>
-                <button id="btn-touch-sprint" class="touch-btn w-12 h-12 rounded-full flex flex-col items-center justify-center text-xs font-bold text-yellow-300 active:scale-90 opacity-70">
-                    <span>⚡</span>
-                    <span class="text-[8px]">SPRINT</span>
-                </button>
-                <button id="btn-touch-strike" class="touch-btn w-14 h-14 bg-red-950/80 border border-red-500/60 rounded-full flex flex-col items-center justify-center text-xs font-black text-red-300 active:scale-90 opacity-80">
-                    <span>⚔️</span>
-                    <span class="text-[8px]">STRIKE</span>
-                </button>
-            </div>
-
-            <!-- Right Camera Circle Joystick Slider -->
-            <div id="aim-joystick-container" class="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-slate-900/40 border-2 border-amber-500/30 backdrop-blur-sm flex items-center justify-center touch-none opacity-60 hover:opacity-90 transition-opacity">
-                <div class="absolute text-[9px] font-bold text-amber-300/40 uppercase tracking-widest pointer-events-none">AIM / CAM</div>
-                <div id="aim-joystick-handle" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-amber-500 to-yellow-600 border-2 border-amber-200/60 shadow-lg transform -translate-x-0 -translate-y-0 transition-transform duration-75"></div>
-            </div>
+        <!-- Rearranged Big Action Buttons Cluster (Replacing Joystick Area) -->
+        <div class="grid grid-cols-2 gap-3.5 pointer-events-auto w-44 h-44 sm:w-52 sm:h-52">
+            <button id="btn-touch-rock" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-base sm:text-lg font-bold text-amber-300 active:scale-95 opacity-65">
+                <span class="text-xl sm:text-2xl">🪨</span>
+                <span class="text-[10px] sm:text-xs">LURE</span>
+            </button>
+            <button id="btn-touch-crouch" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-base sm:text-lg font-bold text-emerald-300 active:scale-95 opacity-65">
+                <span class="text-xl sm:text-2xl">🥷</span>
+                <span class="text-[10px] sm:text-xs">SNEAK</span>
+            </button>
+            <button id="btn-touch-sprint" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-base sm:text-lg font-bold text-yellow-300 active:scale-95 opacity-65">
+                <span class="text-xl sm:text-2xl">⚡</span>
+                <span class="text-[10px] sm:text-xs">SPRINT</span>
+            </button>
+            <button id="btn-touch-strike" class="touch-btn bg-red-950/80 border border-red-500/60 rounded-2xl flex flex-col items-center justify-center text-base sm:text-lg font-black text-red-300 active:scale-95 opacity-80">
+                <span class="text-2xl sm:text-3xl">⚔️</span>
+                <span class="text-[10px] sm:text-xs">STRIKE</span>
+            </button>
         </div>
     </div>
 
