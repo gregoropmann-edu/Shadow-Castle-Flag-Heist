@@ -355,6 +355,14 @@ let mouseY = 0;
 let worldMouseX = 0;
 let worldMouseY = 0;
 
+// Aim Joystick State (Right Circle Slider)
+const aimJoystickState = {
+    active: false,
+    dx: 0,
+    dy: 0,
+    touchId: null
+};
+
 class Player {
     constructor(x, y, startingRocks = 10) {
         this.x = x;
@@ -435,7 +443,12 @@ class Player {
 
         this.moveWithCollision(dx * moveSpeed, dy * moveSpeed);
         
-        if (!isMobileDevice || worldMouseX !== 0) {
+        // Handle Aiming / Camera Direction via Mouse or Right Circle Joystick
+        if (aimJoystickState.active && (aimJoystickState.dx !== 0 || aimJoystickState.dy !== 0)) {
+            this.angle = Math.atan2(aimJoystickState.dy, aimJoystickState.dx);
+            worldMouseX = this.x + aimJoystickState.dx * 180;
+            worldMouseY = this.y + aimJoystickState.dy * 180;
+        } else if (!isMobileDevice || worldMouseX !== 0) {
             this.angle = Math.atan2(worldMouseY - this.y, worldMouseX - this.x);
         } else if (dx !== 0 || dy !== 0) {
             this.angle = Math.atan2(dy, dx);
@@ -1355,6 +1368,7 @@ window.addEventListener('mousedown', (e) => {
     }
 });
 
+// Left Touch D-Pad Binding
 const bindTouchBtn = (id, keyName) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -1378,6 +1392,76 @@ document.getElementById('btn-touch-rock')?.addEventListener('touchstart', (e) =>
     e.preventDefault();
     if (player && gameState === 'PLAYING') player.throwRock();
 });
+
+// Right Aim Joystick Slider Controls Setup
+function setupAimJoystick() {
+    const container = document.getElementById('aim-joystick-container');
+    const handle = document.getElementById('aim-joystick-handle');
+    if (!container || !handle) return;
+
+    function handleTouchMove(e) {
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+            if (aimJoystickState.touchId === null || touch.identifier === aimJoystickState.touchId) {
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+
+                const maxRadius = rect.width / 2 - 10;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > maxRadius) {
+                    dx = (dx / dist) * maxRadius;
+                    dy = (dy / dist) * maxRadius;
+                }
+
+                aimJoystickState.active = true;
+                aimJoystickState.touchId = touch.identifier;
+                aimJoystickState.dx = dx / maxRadius;
+                aimJoystickState.dy = dy / maxRadius;
+
+                handle.style.transform = `translate(${dx}px, ${dy}px)`;
+            }
+        }
+    }
+
+    function resetJoystick(e) {
+        if (!aimJoystickState.active) return;
+
+        let touchFound = false;
+        if (e && e.touches) {
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === aimJoystickState.touchId) {
+                    touchFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!touchFound) {
+            aimJoystickState.active = false;
+            aimJoystickState.dx = 0;
+            aimJoystickState.dy = 0;
+            aimJoystickState.touchId = null;
+            handle.style.transform = `translate(0px, 0px)`;
+        }
+    }
+
+    container.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        aimJoystickState.touchId = touch.identifier;
+        handleTouchMove(e);
+    });
+
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', resetJoystick);
+    window.addEventListener('touchcancel', resetJoystick);
+}
+setupAimJoystick();
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
